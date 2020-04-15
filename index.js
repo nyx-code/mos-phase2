@@ -96,8 +96,17 @@ const storeProgramCards = function(){
 
     programCards.map(function(pc){
         const frame = allocate()
-        memory[ptr][2] = parseInt(frame/10)
-        memory[ptr][3] = frame%10
+        let currPtr = ptr;
+        for(let i=ptr; i<ptr+10; i++){
+            if(memory[i][0] === 0){
+                currPtr = i
+                break
+            }
+        }
+
+        memory[currPtr][0] = 1
+        memory[currPtr][2] = parseInt(frame/10)
+        memory[currPtr][3] = frame%10
         ptr++
         console.log("frame",frame)
         if (frame === -1) {
