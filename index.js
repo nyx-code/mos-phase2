@@ -35,9 +35,9 @@ const init = function(){
     realAddress = null
     virtualAddress = null
 
-    SI = 3
+    SI = 0
     TI = 0
-    PI = null
+    PI = 0
 }
 
 const displayMemory = function(){
@@ -127,63 +127,155 @@ const storeProgramCards = function(){
 
 const addressMap = function(address){
     if (typeof address === "number") {
-        if(memory[ptr][2]+memory[ptr][3] === "**"){
+        const temp = address/10
+        console.log(parseInt(ptr+temp))
+        if(memory[parseInt(ptr+temp)][2]+memory[parseInt(ptr+temp)][3] === "**"){
             //TODO: Raise Page Fault interrupt
+            PI = 3
         } else {
-            const frame = memory[ptr][2]*10 + memory[ptr][3]
+            const frame = memory[parseInt(ptr+temp)][2]*10 + memory[parseInt(ptr+temp)][3]
             
             return frame*10 + address%10
         }
     } else {
         //TODO: Raise Operand Error interrupt
+        PI = 2
+    }
+    return
+}
+
+const read = function(){
+    currentLine = liner.next().toString('ascii')
+    // displayMemory()
+    let tempCounter = 0
+    let charCounter = 0
+    let tempCount = 0
+    let word = []
+    console.log("Line",currentLine.length-1)
+    while (charCounter < currentLine.length-1) {
+        console.log("charCount", charCounter)
+        console.log("address", realAddress+tempCount)
+        word.push(currentLine[charCounter])
+        tempCounter++
+        // console.log(memory[realAddress+tempCount][tempCounter])
+        // tempCounter = (charCounter%4)
+        if(charCounter != 0 && (tempCounter === 4 || charCounter === currentLine.length-2)){
+            console.log(word)
+            memory[realAddress+tempCount] = word
+            word = []
+            tempCounter=0
+            tempCount++
+        }
+        charCounter++
+    }
+}
+
+const mos = function() {
+    console.log("PI TI SI", PI,TI,SI)
+    if (TI === 0 && PI === 3) {
+        //TODO: Handle Valid Page Fault
+        console.log("Hello")
+        if ((instructionRegister[0]+instructionRegister[1]) === ("GD" || "SR")) {
+            const frame = allocate()
+            console.log("IR", instructionRegister)
+            console.log("PTR", ptr)
+            memory[ptr+parseInt(instructionRegister[2])][0] = 1 
+            memory[ptr+parseInt(instructionRegister[2])][2] = parseInt(frame/10)
+            memory[ptr+parseInt(instructionRegister[2])][3] = frame%10
+
+            instructionCounter--
+            PI = 0
+            TI = 0
+            return
+        }
+    }else if (TI === 0 && SI === 1) {
+        TI = 0
+        SI = 0
+        read()
+        displayMemory()
+    }
+}
+
+const simulation = function() {
+    totalTimeCounter++
+    if (totalTimeCounter = pcb.totalTimeLimit) {
+        TI = 2
     }
 }
 
 const executeUserProgram = function(){
     realAddress = addressMap(instructionCounter)
 
-    while(instructionCounter+10 !== instructionCounter){
-        instructionRegister = memory[realAddress]
+    const tempIC = instructionCounter
+    const tempRA = realAddress
+    while(tempIC+10 !== instructionCounter){
+        let flag = true
+        instructionRegister = memory[tempRA+(instructionCounter%10)]
         instructionCounter++
-
+        // displayMemory()
+        console.log("realAddress",realAddress)
+        console.log("instructionCounter", instructionCounter)
+        console.log("memory[realAddress+(instructionCounter%10)]", memory[tempRA+(instructionCounter%10)])
+        console.log("instructionRegister",instructionRegister)
         if (instructionRegister[2] !== null || instructionRegister[3] !== null) {
-            virtualAddress = (parseInt(instructionRegister[2]) == NaN ? instructionRegister[2] : parseInt(instructionRegister[2])*10) + (parseInt(instructionRegister[3]) == NaN ? instructionRegister[3] : parseInt(instructionRegister[3])%10)
-            realAddress = addressMap(virtualAddress)
+            virtualAddress = parseInt(instructionRegister[2]+instructionRegister[3])
+            console.log("virtualAddress",virtualAddress)
+            realAddress = addressMap(virtualAddress) !== undefined ? addressMap(virtualAddress) : realAddress
+            if (PI !== 0) {
+                flag = false
+            }
         }
-       
-        const instruction = instructionRegister[0] + (instructionRegister[1] === null ? "": instructionRegister[1])
+        
+        if (flag) {
+            const instruction = instructionRegister[0] + (instructionRegister[1] === null ? "": instructionRegister[1])
 
-        switch (instruction) {
-            case "LR":
-                register = memory[realAddress]
-                break
-            case "SR":
-                memory[realAddress] = register
-                break
-            case "CR":
-                if (JSON.stringify(memory[realAddress]) === JSON.stringify(register)) {
-                    cToggle = true
-                }else {
-                    cToggle = false
-                }
-                break
-            case "BT":
-                if (cToggle) {
-                    instructionCounter = parseInt(instructionRegister[2]+instructionRegister[3])
-                }
-                break
-            case "GD":
-                SI = 1
-                break
-            case "PD":
-                SI = 2
-                break
-            case "H":
-                SI = 3
-                break
-            default:
-                // TODO: Raise Operation error interrupt
-                break
+            switch (instruction) {
+                case "LR":
+                    exit()
+                    register = memory[realAddress]
+                    break
+                case "SR":
+                    exit()
+                    memory[realAddress] = register
+                    break
+                case "CR":
+                    exit()
+                    if (JSON.stringify(memory[realAddress]) === JSON.stringify(register)) {
+                        cToggle = true
+                    }else {
+                        cToggle = false
+                    }
+                    break
+                case "BT":
+                    exit()
+                    if (cToggle) {
+                        instructionCounter = parseInt(instructionRegister[2]+instructionRegister[3])
+                    }
+                    break
+                case "GD":
+                    SI = 1
+                    break
+                case "PD":
+                    SI = 2
+                    exit()
+                    break
+                case "H":
+                    SI = 3
+                    exit(0)
+                    break
+                default:
+                    exit()
+                    // TODO: Raise Operation error interrupt
+                    PI = 1
+            }
+        }
+
+        // simulation()
+
+        if ((SI !== 0) || (PI !== 0) || (TI !== 0)) {
+            console.log("realAddress",realAddress)
+           
+            mos()
         }
     }
 
