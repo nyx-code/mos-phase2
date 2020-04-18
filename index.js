@@ -1,8 +1,11 @@
 const _ = require("lodash")
 const lineByLine = require('n-readlines')
+const fs = require('fs');
 const { SplitIntoParts, getRandom } = require("./service")
 
-const liner = new lineByLine('./res/test_input.txt');
+const outputFilePath = './res/test_output.txt'
+const inputFilePath = './res/test_input.txt'
+const liner = new lineByLine(inputFilePath);
 var currentLine;
 var randomFrames = []
 
@@ -151,23 +154,65 @@ const read = function(){
     let charCounter = 0
     let tempCount = 0
     let word = []
+    let address;
     console.log("Line",currentLine.length-1)
     while (charCounter < currentLine.length-1) {
         console.log("charCount", charCounter)
         console.log("address", realAddress+tempCount)
+        address = realAddress+tempCount
         word.push(currentLine[charCounter])
         tempCounter++
         // console.log(memory[realAddress+tempCount][tempCounter])
         // tempCounter = (charCounter%4)
         if(charCounter != 0 && (tempCounter === 4 || charCounter === currentLine.length-2)){
             console.log(word)
-            memory[realAddress+tempCount] = word
+            memory[address] = word
             word = []
             tempCounter=0
             tempCount++
         }
         charCounter++
     }
+
+    if(memory[address][1] === undefined)
+        memory[address][1] = null
+    if(memory[address][2] === undefined)
+        memory[address][2] = null
+    if(memory[address][3] === undefined)
+        memory[address][3] = null
+    
+    
+}
+
+const write = function(){
+    //TODO: write contents of memory to the file
+    // displayMemory()
+    let lineToAppend = ""
+    let wordCounter = 0
+    let mainCounter = 0
+    while(1){
+        let address = realAddress + mainCounter
+        console.log("Address",address)
+        console.log(memory[address][wordCounter])
+        if (memory[address][wordCounter] === null) {
+            lineToAppend += "\n"
+            break
+        }
+
+        lineToAppend += memory[address][wordCounter]
+        wordCounter++
+
+        if (wordCounter === 4) {
+            wordCounter = 0
+            mainCounter++
+        }
+
+    }
+    fs.appendFileSync(outputFilePath, `${lineToAppend}`, (err) => {
+        if (err)
+            console.log('ERROR:', err);
+    });
+    
 }
 
 const mos = function() {
@@ -192,7 +237,12 @@ const mos = function() {
         TI = 0
         SI = 0
         read()
-        displayMemory()
+        // displayMemory()
+
+    } else if (TI === 0 && SI === 2){
+        TI = 0
+        SI = 0
+        write()
     }
 }
 
@@ -217,7 +267,7 @@ const executeUserProgram = function(){
         console.log("instructionCounter", instructionCounter)
         console.log("memory[realAddress+(instructionCounter%10)]", memory[tempRA+(instructionCounter%10)])
         console.log("instructionRegister",instructionRegister)
-        if (instructionRegister[2] !== null || instructionRegister[3] !== null) {
+        if (instructionRegister[0] !== "H") {
             virtualAddress = parseInt(instructionRegister[2]+instructionRegister[3])
             console.log("virtualAddress",virtualAddress)
             realAddress = addressMap(virtualAddress) !== undefined ? addressMap(virtualAddress) : realAddress
@@ -257,7 +307,6 @@ const executeUserProgram = function(){
                     break
                 case "PD":
                     SI = 2
-                    exit()
                     break
                 case "H":
                     SI = 3
@@ -314,7 +363,8 @@ const load = function(){
 }
 
 
-
-load()
+fs.unlink(outputFilePath,(err) => {
+    load()
+})
 
 
