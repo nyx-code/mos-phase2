@@ -51,7 +51,7 @@ const displayMemory = function(){
 
 const allocate = function(){
     let randomNumber = getRandom(0,29)
-    console.log(randomNumber)
+    // console.log(randomNumber)
     if(randomFrames.length > 29){
         return -1
     }else if (randomFrames.includes(randomNumber)) {
@@ -65,12 +65,12 @@ const allocate = function(){
 
 const initPCB = function(){
     const frame = allocate()
-    console.log("frame",frame)
+    // console.log("frame",frame)
     if (frame === -1) {
-        console.log("Memory Full")
+        // console.log("Memory Full")
         return
     }
-    console.log(frame*10,(frame*10)+9)
+    // console.log(frame*10,(frame*10)+9)
     ptr = frame*10
     for (let i = frame*10; i <= (frame*10)+9; i++) {
         memory[i] = [0, '', '*', '*']
@@ -113,12 +113,12 @@ const storeProgramCards = function(){
         memory[currPtr][2] = parseInt(frame/10)
         memory[currPtr][3] = frame%10
 
-        console.log("frame",frame)
+        // console.log("frame",frame)
         if (frame === -1) {
-            console.log("Memory Full")
+            // console.log("Memory Full")
             return
         }
-        console.log(frame*10,(frame*10)+9)
+        // console.log(frame*10,(frame*10)+9)
         for (let i = frame*10,j=0; (i <= (frame*10)+9) || (j < pc.length); i++,j++) {
             if (pc[j-1] == "H" ) {
                 break
@@ -131,7 +131,7 @@ const storeProgramCards = function(){
 const addressMap = function(address){
     if (typeof address === "number") {
         const temp = address/10
-        console.log(parseInt(ptr+temp))
+        // console.log(parseInt(ptr+temp))
         if(memory[parseInt(ptr+temp)][2]+memory[parseInt(ptr+temp)][3] === "**"){
             //TODO: Raise Page Fault interrupt
             PI = 3
@@ -155,17 +155,17 @@ const read = function(){
     let tempCount = 0
     let word = []
     let address;
-    console.log("Line",currentLine.length-1)
+    // console.log("Line",currentLine.length-1)
     while (charCounter < currentLine.length-1) {
-        console.log("charCount", charCounter)
-        console.log("address", realAddress+tempCount)
+        // console.log("charCount", charCounter)
+        // console.log("address", realAddress+tempCount)
         address = realAddress+tempCount
         word.push(currentLine[charCounter])
         tempCounter++
         // console.log(memory[realAddress+tempCount][tempCounter])
         // tempCounter = (charCounter%4)
         if(charCounter != 0 && (tempCounter === 4 || charCounter === currentLine.length-2)){
-            console.log(word)
+            // console.log(word)
             memory[address] = word
             word = []
             tempCounter=0
@@ -192,8 +192,8 @@ const write = function(){
     let mainCounter = 0
     while(1){
         let address = realAddress + mainCounter
-        console.log("Address",address)
-        console.log(memory[address][wordCounter])
+        // console.log("Address",address)
+        // console.log(memory[address][wordCounter])
         if (memory[address][wordCounter] === null) {
             lineToAppend += "\n"
             break
@@ -215,15 +215,33 @@ const write = function(){
     
 }
 
+const terminate = function(error1, error2){
+
+    // console.log("hello from terminate")
+
+    let errorMsg = errorMessage[error1]
+    if(error2){
+        errorMsg += ` and ${errorMessage[error2]}`
+    }
+
+    let lineToAppend = `JOB ID : ${pcb.jobId}\n${errorMsg}\nIC     : ${instructionCounter}\nIR     : ${instructionRegister}\nTTC    : ${totalTimeCounter}\nLLC    : ${lineLimitCounter}\n`
+
+    fs.appendFileSync(outputFilePath, `${lineToAppend}\n\n`, (err) => {
+        if (err)
+            console.log('ERROR:', err);
+    });
+    load()
+}
+
 const mos = function() {
-    console.log("PI TI SI", PI,TI,SI)
+    // console.log("PI TI SI", PI,TI,SI)
     if (TI === 0 && PI === 3) {
         //TODO: Handle Valid Page Fault
-        console.log("Hello")
+        // console.log("Hello")
         if ((instructionRegister[0]+instructionRegister[1]) === ("GD" || "SR")) {
             const frame = allocate()
-            console.log("IR", instructionRegister)
-            console.log("PTR", ptr)
+            // console.log("IR", instructionRegister)
+            // console.log("PTR", ptr)
             memory[ptr+parseInt(instructionRegister[2])][0] = 1 
             memory[ptr+parseInt(instructionRegister[2])][2] = parseInt(frame/10)
             memory[ptr+parseInt(instructionRegister[2])][3] = frame%10
@@ -237,12 +255,15 @@ const mos = function() {
         TI = 0
         SI = 0
         read()
-        // displayMemory()
 
     } else if (TI === 0 && SI === 2){
         TI = 0
         SI = 0
         write()
+    } else if ((TI === 0 || TI === 2) && SI === 3){
+        TI = 0
+        SI = 0
+        terminate(0)
     }
 }
 
@@ -263,13 +284,13 @@ const executeUserProgram = function(){
         instructionRegister = memory[tempRA+(instructionCounter%10)]
         instructionCounter++
         // displayMemory()
-        console.log("realAddress",realAddress)
-        console.log("instructionCounter", instructionCounter)
-        console.log("memory[realAddress+(instructionCounter%10)]", memory[tempRA+(instructionCounter%10)])
-        console.log("instructionRegister",instructionRegister)
+        // console.log("realAddress",realAddress)
+        // console.log("instructionCounter", instructionCounter)
+        // console.log("memory[realAddress+(instructionCounter%10)]", memory[tempRA+(instructionCounter%10)])
+        // console.log("instructionRegister",instructionRegister)
         if (instructionRegister[0] !== "H") {
             virtualAddress = parseInt(instructionRegister[2]+instructionRegister[3])
-            console.log("virtualAddress",virtualAddress)
+            // console.log("virtualAddress",virtualAddress)
             realAddress = addressMap(virtualAddress) !== undefined ? addressMap(virtualAddress) : realAddress
             if (PI !== 0) {
                 flag = false
@@ -277,7 +298,7 @@ const executeUserProgram = function(){
         }
         
         if (flag) {
-            const instruction = instructionRegister[0] + (instructionRegister[1] === null ? "": instructionRegister[1])
+            const instruction = instructionRegister[0] + (instructionRegister[1] === undefined ? "": instructionRegister[1])
 
             switch (instruction) {
                 case "LR":
@@ -310,10 +331,9 @@ const executeUserProgram = function(){
                     break
                 case "H":
                     SI = 3
-                    exit(0)
                     break
                 default:
-                    exit()
+                    // process.exit(-1)
                     // TODO: Raise Operation error interrupt
                     PI = 1
             }
@@ -322,8 +342,7 @@ const executeUserProgram = function(){
         // simulation()
 
         if ((SI !== 0) || (PI !== 0) || (TI !== 0)) {
-            console.log("realAddress",realAddress)
-           
+            // console.log("realAddress",realAddress)
             mos()
         }
     }
@@ -341,9 +360,9 @@ const startExecution = function(){
 const load = function(){
     currentLine = liner.next().toString('ascii')
     const head = currentLine.slice(0,4)
-    if (currentLine === false) {
+    if (currentLine === "false") {
         console.log("Program has finished its execution.")
-        exit(0)
+        process.exit(-1)
     } else if (head === "$AMJ") {
         init()
         const buffer = currentLine.SplitIntoParts(4)
@@ -352,13 +371,15 @@ const load = function(){
         pcb.totalLineLimit = parseInt(buffer[3])
         
         initPCB()
-        console.log(pcb)
+        // console.log(pcb)
         
         storeProgramCards()
         // displayMemory()
         load()
     } else if (head === "$DTA"){
         startExecution()
+    } else if (head === "$END"){
+        load()
     }
 }
 
