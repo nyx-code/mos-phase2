@@ -175,11 +175,11 @@ const read = function(){
     }
 
     if(memory[address][1] === undefined)
-        memory[address][1] = null
+        memory[address][1] = ''
     if(memory[address][2] === undefined)
-        memory[address][2] = null
+        memory[address][2] = ''
     if(memory[address][3] === undefined)
-        memory[address][3] = null
+        memory[address][3] = ''
     
     
 }
@@ -234,11 +234,11 @@ const terminate = function(error1, error2){
 }
 
 const mos = function() {
-    // console.log("PI TI SI", PI,TI,SI)
+    console.log("PI TI SI", PI,TI,SI)
     if (TI === 0 && PI === 3) {
         //TODO: Handle Valid Page Fault
         // console.log("Hello")
-        if ((instructionRegister[0]+instructionRegister[1]) === ("GD" || "SR")) {
+        if ((instructionRegister[0]+instructionRegister[1]) === "GD" || (instructionRegister[0]+instructionRegister[1]) === "SR") {
             const frame = allocate()
             // console.log("IR", instructionRegister)
             // console.log("PTR", ptr)
@@ -250,6 +250,8 @@ const mos = function() {
             PI = 0
             TI = 0
             return
+        } else {
+            terminate(6)
         }
     }else if (TI === 0 && SI === 1) {
         TI = 0
@@ -281,6 +283,9 @@ const executeUserProgram = function(){
     const tempRA = realAddress
     while(tempIC+10 !== instructionCounter){
         let flag = true
+        // if (PI !== 0) {
+        //     flag = false
+        // }
         instructionRegister = memory[tempRA+(instructionCounter%10)]
         instructionCounter++
         // displayMemory()
@@ -302,15 +307,12 @@ const executeUserProgram = function(){
 
             switch (instruction) {
                 case "LR":
-                    exit()
                     register = memory[realAddress]
                     break
                 case "SR":
-                    exit()
                     memory[realAddress] = register
                     break
                 case "CR":
-                    exit()
                     if (JSON.stringify(memory[realAddress]) === JSON.stringify(register)) {
                         cToggle = true
                     }else {
@@ -318,7 +320,6 @@ const executeUserProgram = function(){
                     }
                     break
                 case "BT":
-                    exit()
                     if (cToggle) {
                         instructionCounter = parseInt(instructionRegister[2]+instructionRegister[3])
                     }
@@ -330,6 +331,7 @@ const executeUserProgram = function(){
                     SI = 2
                     break
                 case "H":
+                    // displayMemory()
                     SI = 3
                     break
                 default:
