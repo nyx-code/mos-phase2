@@ -9,6 +9,7 @@ const liner = new lineByLine(inputFilePath);
 var currentLine;
 var randomFrames = []
 var mainFlag = false 
+var mainFlag1 = false 
 var memory,realAddress, virtualAddress, instructionRegister, instructionCounter, register, cToggle, pageTableRegister, pcb, ptr, totalTimeCounter, lineLimitCounter, errorMessage, SI, PI, TI
 
 const init = function(){
@@ -26,21 +27,23 @@ const init = function(){
     totalTimeCounter = 0
     lineLimitCounter = 0
     errorMessage = [
-        "No Error",
-        "Out of Data",
-        "Line Limit Exceeded",
-        "Time Limit Exceeded",
-        "Operation Code Error",
-        "Operand Error",
-        "Invalid Page Fault"
+        "NO ERROR",
+        "OUT OF DATA",
+        "LINE LIMIT EXCEEDED",
+        "TIME LIMIT EXCEEDED",
+        "OPERATION CODE ERROR",
+        "OPERAND ERROR",
+        "INVALID PAGE FAULT"
     ]
     ptr = null
     realAddress = null
     virtualAddress = null
     mainFlag = false 
+    mainFlag1 = false 
     SI = 0
     TI = 0
     PI = 0
+    randomFrames = []
 }
 
 const displayMemory = function(){
@@ -98,11 +101,15 @@ const storeProgramCards = function(){
             currentLine = currentLine.trim()
         }
     }
-
+    // console.log("\n")
     programCards.map(function(pc){
         const frame = allocate()
         let currPtr = ptr;
+        // console.log(pc)
         for(let i=ptr; i<ptr+10; i++){
+            // if (memory[i] === undefined) {
+            //     displayMemory()
+            // }
             if(memory[i][0] === 0){
                 currPtr = i
                 break
@@ -119,6 +126,7 @@ const storeProgramCards = function(){
             return
         }
         // console.log(frame*10,(frame*10)+9)
+        // console.log(pc)
         for (let i = frame*10,j=0; (i <= (frame*10)+9) || (j < pc.length); i++,j++) {
             if (pc[j-1] == "H" ) {
                 break
@@ -149,6 +157,11 @@ const addressMap = function(address){
 
 const read = function(){
     currentLine = liner.next().toString('ascii')
+    let head = currentLine.slice(0,4)
+    if (head === "$END") {
+        mainFlag1 = true
+        terminate(1)
+    }
     // displayMemory()
     let tempCounter = 0
     let charCounter = 0
@@ -181,7 +194,7 @@ const read = function(){
     if(memory[address][3] === undefined)
         memory[address][3] = ''
     
-    
+    // displayMemory()
 }
 
 const write = function(){
@@ -229,7 +242,7 @@ const terminate = function(error1, error2){
 
     let errorMsg = errorMessage[error1]
     if(error2){
-        errorMsg += ` and ${errorMessage[error2]}`
+        errorMsg += ` AND ${errorMessage[error2]}`
     }
 
     let lineToAppend = `JOB ID : ${pcb.jobId}\n${errorMsg}\nIC     : ${instructionCounter}\nIR     : ${instructionRegister.join('')}\nTTC    : ${totalTimeCounter}\nLLC    : ${lineLimitCounter}\n`
@@ -253,7 +266,6 @@ const mos = function() {
             memory[ptr+parseInt(instructionRegister[2])][0] = 1 
             memory[ptr+parseInt(instructionRegister[2])][2] = parseInt(frame/10)
             memory[ptr+parseInt(instructionRegister[2])][3] = frame%10
-
             instructionCounter--
             PI = 0
             TI = 0
@@ -269,7 +281,11 @@ const mos = function() {
         TI = 0
         SI = 0
         write()
-    } else if ((TI === 0 || TI === 2) && SI === 3){
+    } else if (TI === 0 && SI === 3){
+        TI = 0
+        SI = 0
+        terminate(0)
+    } else if (TI === 2 && SI === 3){
         TI = 0
         SI = 0
         terminate(0)
@@ -302,12 +318,16 @@ const mos = function() {
         TI = 0
         PI = 0
         terminate(3)
+    } else if (TI === 2) {
+        TI = 0
+        terminate(3)
     }
 }
 
 const simulation = function() {
     totalTimeCounter++
-    if (totalTimeCounter === pcb.totalTimeLimit) {
+    // console.log(totalTimeCounter)
+    if (totalTimeCounter > pcb.totalTimeLimit) {
         TI = 2
     }
 }
@@ -330,7 +350,11 @@ const executeUserProgram = function(){
         // console.log("memory[realAddress+(instructionCounter%10)]", memory[tempRA+(instructionCounter%10)])
         // console.log("instructionRegister",instructionRegister)
         if (instructionRegister[0] !== "H") {
-            virtualAddress = parseInt(instructionRegister[2]+instructionRegister[3])
+            if (isNaN(parseInt(instructionRegister[2])) ||  isNaN(parseInt(instructionRegister[3]))) {   
+                virtualAddress = instructionRegister[2]+instructionRegister[3]
+            } else {
+                virtualAddress = parseInt(instructionRegister[2]+instructionRegister[3])
+            }
             // console.log("virtualAddress",virtualAddress)
             realAddress = addressMap(virtualAddress) !== undefined ? addressMap(virtualAddress) : realAddress
             if (PI !== 0) {
@@ -395,21 +419,27 @@ const startExecution = function(){
 
 
 const load = function(){
-    currentLine = liner.next().toString('ascii')
-    let head = currentLine.slice(0,4)
-    console.log("head",head)
+    let head
+    if (!mainFlag1) {
+        currentLine = liner.next().toString('ascii')
+        head = currentLine.slice(0,4)
 
-    if (mainFlag) {
-        mainFlag = false
-        while(1){
-            currentLine = liner.next().toString('ascii')
-            head = currentLine.slice(0,4)
-            if (head === "$AMJ" || currentLine === "false") {
-                break
+        if (mainFlag) {
+            mainFlag = false
+            while(1){
+                currentLine = liner.next().toString('ascii')
+                head = currentLine.slice(0,4)
+                if (head === "$AMJ" || currentLine === "false") {
+                    break
+                }
             }
+            // console.log("head",head)
         }
-        console.log("head",head)
+    } else{
+        mainFlag1 = false
+        head = currentLine.slice(0,4)
     }
+    // console.log("head",head)
 
     if (currentLine === "false") {
         console.log("Program has finished its execution.")
@@ -422,7 +452,8 @@ const load = function(){
         pcb.totalLineLimit = parseInt(buffer[3])
         
         initPCB()
-        console.log(pcb)
+        // console.log(pcb)
+        // console.log(ptr)
         
         storeProgramCards()
         // displayMemory()
