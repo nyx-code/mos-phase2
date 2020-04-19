@@ -8,7 +8,7 @@ const inputFilePath = './res/test_input.txt'
 const liner = new lineByLine(inputFilePath);
 var currentLine;
 var randomFrames = []
-
+var mainFlag = false 
 var memory,realAddress, virtualAddress, instructionRegister, instructionCounter, register, cToggle, pageTableRegister, pcb, ptr, totalTimeCounter, lineLimitCounter, errorMessage, SI, PI, TI
 
 const init = function(){
@@ -23,8 +23,8 @@ const init = function(){
         totalTimeLimit: null,
         totalLineLimit: null
     }
-    totalTimeCounter = null
-    lineLimitCounter = null
+    totalTimeCounter = 0
+    lineLimitCounter = 0
     errorMessage = [
         "No Error",
         "Out of Data",
@@ -37,7 +37,7 @@ const init = function(){
     ptr = null
     realAddress = null
     virtualAddress = null
-
+    mainFlag = false 
     SI = 0
     TI = 0
     PI = 0
@@ -187,6 +187,13 @@ const read = function(){
 const write = function(){
     //TODO: write contents of memory to the file
     // displayMemory()
+
+    lineLimitCounter++
+
+    if (lineLimitCounter > pcb.totalLineLimit) {
+        terminate(2)
+    }
+
     let lineToAppend = ""
     let wordCounter = 0
     let mainCounter = 0
@@ -217,6 +224,7 @@ const write = function(){
 
 const terminate = function(error1, error2){
 
+    mainFlag = true
     // console.log("hello from terminate")
 
     let errorMsg = errorMessage[error1]
@@ -224,7 +232,7 @@ const terminate = function(error1, error2){
         errorMsg += ` and ${errorMessage[error2]}`
     }
 
-    let lineToAppend = `JOB ID : ${pcb.jobId}\n${errorMsg}\nIC     : ${instructionCounter}\nIR     : ${instructionRegister}\nTTC    : ${totalTimeCounter}\nLLC    : ${lineLimitCounter}\n`
+    let lineToAppend = `JOB ID : ${pcb.jobId}\n${errorMsg}\nIC     : ${instructionCounter}\nIR     : ${instructionRegister.join('')}\nTTC    : ${totalTimeCounter}\nLLC    : ${lineLimitCounter}\n`
 
     fs.appendFileSync(outputFilePath, `${lineToAppend}\n\n`, (err) => {
         if (err)
@@ -234,7 +242,7 @@ const terminate = function(error1, error2){
 }
 
 const mos = function() {
-    console.log("PI TI SI", PI,TI,SI)
+    // console.log("PI TI SI", PI,TI,SI)
     if (TI === 0 && PI === 3) {
         //TODO: Handle Valid Page Fault
         // console.log("Hello")
@@ -257,7 +265,6 @@ const mos = function() {
         TI = 0
         SI = 0
         read()
-
     } else if (TI === 0 && SI === 2){
         TI = 0
         SI = 0
@@ -266,12 +273,41 @@ const mos = function() {
         TI = 0
         SI = 0
         terminate(0)
+    } else if (TI === 2 && SI === 1){
+        TI = 0
+        SI = 0
+        terminate(3)
+    } else if (TI === 2 && SI === 2){
+        TI = 0
+        SI = 0
+        write()
+        terminate(3)
+    } else if (TI === 0 && PI === 1){
+        TI = 0
+        PI = 0
+        terminate(4)
+    } else if (TI === 0 && PI === 2){
+        TI = 0
+        PI = 0
+        terminate(5)
+    } else if (TI === 2 && PI === 1){
+        TI = 0
+        PI = 0
+        terminate(3,4)
+    } else if (TI === 2 && PI === 2){
+        TI = 0
+        PI = 0
+        terminate(3,5)
+    } else if (TI === 2 && PI === 3){
+        TI = 0
+        PI = 0
+        terminate(3)
     }
 }
 
 const simulation = function() {
     totalTimeCounter++
-    if (totalTimeCounter = pcb.totalTimeLimit) {
+    if (totalTimeCounter === pcb.totalTimeLimit) {
         TI = 2
     }
 }
@@ -335,13 +371,12 @@ const executeUserProgram = function(){
                     SI = 3
                     break
                 default:
-                    // process.exit(-1)
                     // TODO: Raise Operation error interrupt
                     PI = 1
             }
+            simulation()
         }
 
-        // simulation()
 
         if ((SI !== 0) || (PI !== 0) || (TI !== 0)) {
             // console.log("realAddress",realAddress)
@@ -361,7 +396,21 @@ const startExecution = function(){
 
 const load = function(){
     currentLine = liner.next().toString('ascii')
-    const head = currentLine.slice(0,4)
+    let head = currentLine.slice(0,4)
+    console.log("head",head)
+
+    if (mainFlag) {
+        mainFlag = false
+        while(1){
+            currentLine = liner.next().toString('ascii')
+            head = currentLine.slice(0,4)
+            if (head === "$AMJ" || currentLine === "false") {
+                break
+            }
+        }
+        console.log("head",head)
+    }
+
     if (currentLine === "false") {
         console.log("Program has finished its execution.")
         process.exit(-1)
@@ -373,7 +422,7 @@ const load = function(){
         pcb.totalLineLimit = parseInt(buffer[3])
         
         initPCB()
-        // console.log(pcb)
+        console.log(pcb)
         
         storeProgramCards()
         // displayMemory()
@@ -381,6 +430,7 @@ const load = function(){
     } else if (head === "$DTA"){
         startExecution()
     } else if (head === "$END"){
+        // displayMemory()
         load()
     }
 }

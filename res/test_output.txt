@@ -1,10 +1,47 @@
-CAT CAN EAT RAT
+CAT CANEAT RAT
 RAT
 JOB ID : 0302
 No Error
 IC     : 10
 IR     : H
-TTC    : null
-LLC    : null
+TTC    : 10
+LLC    : 2
+
+
+JOB ID : 0102
+Invalid Page Fault
+IC     : 2
+IR     : LR36
+TTC    : 1
+LLC    : 0
+
+
+ABCD
+ABCD
+MATCH
+JOB ID : 0401
+Time Limit Exceeded
+IC     : 11
+IR     : PD50
+TTC    : 10
+LLC    : 3
+
+
+SHE SELLS   SEA SHELLS ON
+JOB ID : 0403
+Time Limit Exceeded and Operation Code Error
+IC     : 5
+IR     : PS40
+TTC    : 5
+LLC    : 1
+
+
+SHE SELLS   SEA SHELLS ON
+JOB ID : 0405
+Time Limit Exceeded
+IC     : 5
+IR     : PD40
+TTC    : 4
+LLC    : 1
 
 
