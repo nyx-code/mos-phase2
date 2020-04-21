@@ -251,29 +251,13 @@ const terminate = function(error1, error2){
         if (err)
             console.log('ERROR:', err);
     });
+    // displayMemory()
     load()
 }
 
 const mos = function() {
     // console.log("PI TI SI", PI,TI,SI)
-    if (TI === 0 && PI === 3) {
-        //TODO: Handle Valid Page Fault
-        // console.log("Hello")
-        if ((instructionRegister[0]+instructionRegister[1]) === "GD" || (instructionRegister[0]+instructionRegister[1]) === "SR") {
-            const frame = allocate()
-            // console.log("IR", instructionRegister)
-            // console.log("PTR", ptr)
-            memory[ptr+parseInt(instructionRegister[2])][0] = 1 
-            memory[ptr+parseInt(instructionRegister[2])][2] = parseInt(frame/10)
-            memory[ptr+parseInt(instructionRegister[2])][3] = frame%10
-            instructionCounter--
-            PI = 0
-            TI = 0
-            return
-        } else {
-            terminate(6)
-        }
-    }else if (TI === 0 && SI === 1) {
+    if (TI === 0 && SI === 1) {
         TI = 0
         SI = 0
         read()
@@ -306,7 +290,24 @@ const mos = function() {
         TI = 0
         PI = 0
         terminate(5)
-    } else if (TI === 2 && PI === 1){
+    } else if (TI === 0 && PI === 3) {
+        //TODO: Handle Valid Page Fault
+        // console.log("Hello")
+        if ((instructionRegister[0]+instructionRegister[1]) === "GD" || (instructionRegister[0]+instructionRegister[1]) === "SR") {
+            const frame = allocate()
+            // console.log("IR", instructionRegister)
+            // console.log("PTR", ptr)
+            memory[ptr+parseInt(instructionRegister[2])][0] = 1 
+            memory[ptr+parseInt(instructionRegister[2])][2] = parseInt(frame/10)
+            memory[ptr+parseInt(instructionRegister[2])][3] = frame%10
+            instructionCounter--
+            PI = 0
+            TI = 0
+            return
+        } else {
+            terminate(6)
+        }
+    }else if (TI === 2 && PI === 1){
         TI = 0
         PI = 0
         terminate(3,4)
@@ -318,16 +319,13 @@ const mos = function() {
         TI = 0
         PI = 0
         terminate(3)
-    } else if (TI === 2) {
-        TI = 0
-        terminate(3)
     }
 }
 
 const simulation = function() {
     totalTimeCounter++
     // console.log(totalTimeCounter)
-    if (totalTimeCounter > pcb.totalTimeLimit) {
+    if (totalTimeCounter >= pcb.totalTimeLimit) {
         TI = 2
     }
 }
@@ -398,7 +396,10 @@ const executeUserProgram = function(){
                     // TODO: Raise Operation error interrupt
                     PI = 1
             }
-            simulation()
+
+            if (PI !== 1) { 
+                simulation()
+            }
         }
 
 
@@ -453,7 +454,6 @@ const load = function(){
         
         initPCB()
         // console.log(pcb)
-        // console.log(ptr)
         
         storeProgramCards()
         // displayMemory()
@@ -461,7 +461,6 @@ const load = function(){
     } else if (head === "$DTA"){
         startExecution()
     } else if (head === "$END"){
-        // displayMemory()
         load()
     }
 }
